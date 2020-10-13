@@ -65,7 +65,7 @@ $expire_c = function ($ids) use ($processed) {
             unlink(__DIR__ . '/../storage/' . $id . '.expire_in');
             $processed['expire'] = $id;
         } else {
-            $user->expired_notified = true;
+            $user->expire_notified = true;
             if ($user->save() == true) {
                 unlink(__DIR__ . '/../storage/' . $id . '.expire_in');
                 echo 'Expire Process successed for user' . $id . PHP_EOL;
@@ -133,7 +133,7 @@ if (file_exists(__DIR__ . '/../storage/traffic_notified') == true) {
         foreach ($files as $origin_file) {
             $file = explode('.', $origin_file);
             if (count($file) == 2 && is_numeric($file[0] && $file[1] == 'userid')) {
-                        $notified[] = $file[0];
+                $notified[] = $file[0];
             } else {
                 echo 'Unrecognized file: ' . $origin_file . PHP_EOL;
             }
