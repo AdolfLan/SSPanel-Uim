@@ -13,10 +13,15 @@ use App\Utils\{
     URL,
     Tools,
     AppURI,
+    ConfGenerate,
     ConfRender
 };
 use voku\helper\AntiXSS;
 use Psr\Http\Message\ResponseInterface;
+use Slim\Http\{
+    Request,
+    Response
+};
 
 /**
  *  LinkController
@@ -36,26 +41,28 @@ class LinkController extends BaseController
         return "couldn't alloc token";
     }
 
-    public static function GenerateSSRSubCode($userid, $without_mu)
+    /**
+     * @param int $userid
+     */
+    public static function GenerateSSRSubCode(int $userid): string
     {
-        $Elink = Link::where('type', 11)->where('userid', $userid)->where('geo', $without_mu)->first();
+        $Elink = Link::where('userid', $userid)->first();
         if ($Elink != null) {
             return $Elink->token;
         }
-        $NLink = new Link();
-        $NLink->type = 11;
-        $NLink->address = '';
-        $NLink->port = 0;
-        $NLink->ios = 0;
-        $NLink->geo = $without_mu;
-        $NLink->method = '';
+        $NLink         = new Link();
         $NLink->userid = $userid;
-        $NLink->token = self::GenerateRandomLink();
+        $NLink->token  = self::GenerateRandomLink();
         $NLink->save();
 
         return $NLink->token;
     }
 
+    /**
+     * @param Request   $request
+     * @param Response  $response
+     * @param array     $args
+     */
     public static function GetContent($request, $response, $args)
     {
         if (!$_ENV['Subscribe']) {
@@ -64,13 +71,12 @@ class LinkController extends BaseController
 
         $token = $args['token'];
 
-        //$builder->getPhrase();
-        $Elink = Link::where('type', 11)->where('token', $token)->first();
+        $Elink = Link::where('token', $token)->first();
         if ($Elink == null) {
             return null;
         }
 
-        $user = User::where('id', $Elink->userid)->first();
+        $user = $Elink->getUser();
         if ($user == null) {
             return null;
         }
@@ -132,7 +138,7 @@ class LinkController extends BaseController
                     $opts['sub'] = 3;
                     break;
                 case 3:
-                    $opts['ssd'] = 1;
+                    $opts['ssd'] = 1; //deprecated
                     break;
                 case 4:
                     $opts['clash'] = 1;
@@ -145,7 +151,7 @@ class LinkController extends BaseController
 
         $getBody = '';
 
-        $sub_type_array = ['list', 'ssd', 'clash', 'surge', 'surfboard', 'quantumult', 'quantumultx', 'sub'];
+        $sub_type_array = ['list', 'clash', 'surge', 'surfboard','anxray', 'quantumult', 'quantumultx', 'sub'];
         foreach ($sub_type_array as $key) {
             if (isset($opts[$key])) {
                 $query_value = $opts[$key];
@@ -212,13 +218,6 @@ class LinkController extends BaseController
                     'class'    => 'Lists'
                 ];
                 break;
-            case 'ssd':
-                $return = [
-                    'filename' => 'SSD',
-                    'suffix'   => 'txt',
-                    'class'    => 'SSD'
-                ];
-                break;
             case 'ssr':
                 $return = [
                     'filename' => 'SSR',
@@ -238,13 +237,8 @@ class LinkController extends BaseController
                 break;
             case 'clash':
                 if ($value !== null) {
-                    if ((int) $value == 2) {
-                        $return = self::getSubscribeExtend('clashr');
-                        $return['class'] = 'Clash';
-                    } else {
-                        $return = self::getSubscribeExtend('clash');
-                        $return['class'] = 'Clash';
-                    }
+                    $return = self::getSubscribeExtend('clash');
+                    $return['class'] = 'Clash';
                 } else {
                     $return = [
                         'filename' => 'Clash',
@@ -269,16 +263,16 @@ class LinkController extends BaseController
                     ];
                 }
                 break;
-            case 'clashr':
-                $return = [
-                    'filename' => 'ClashR',
-                    'suffix'   => 'yaml',
-                    'class'    => 'Lists'
-                ];
-                break;
             case 'v2rayn':
                 $return = [
                     'filename' => 'V2RayN',
+                    'suffix'   => 'txt',
+                    'class'    => 'Sub'
+                ];
+                break;
+            case 'trojan':
+                $return = [
+                    'filename' => 'Trojan',
                     'suffix'   => 'txt',
                     'class'    => 'Sub'
                 ];
@@ -290,6 +284,13 @@ class LinkController extends BaseController
                     'class'    => 'Lists'
                 ];
                 break;
+            case 'anxray':
+                $return = [
+                    'filename' => 'AnXray',
+                    'suffix'   => 'txt',
+                    'class'    => 'AnXray'
+                ];
+                break;	
             case 'surfboard':
                 $return = [
                     'filename' => 'Surfboard',
@@ -332,13 +333,6 @@ class LinkController extends BaseController
             case 'clash_provider':
                 $return = [
                     'filename' => 'ClashProvider',
-                    'suffix'   => 'yaml',
-                    'class'    => 'Lists'
-                ];
-                break;
-            case 'clashr_provider':
-                $return = [
-                    'filename' => 'ClashRProvider',
                     'suffix'   => 'yaml',
                     'class'    => 'Lists'
                 ];
@@ -395,7 +389,7 @@ class LinkController extends BaseController
      * 响应内容
      *
      * @param User   $user
-     * @param array  $response
+     * @param object $response
      * @param string $content  订阅内容
      * @param string $filename 文件名
      */
@@ -438,7 +432,7 @@ class LinkController extends BaseController
         if ($int == 0) {
             $int = '';
         }
-        $userapiUrl = $_ENV['subUrl'] . self::GenerateSSRSubCode($user->id, 0);
+        $userapiUrl = $_ENV['subUrl'] . self::GenerateSSRSubCode($user->id);
         $return_info = [
             'link'            => '',
             // sub
@@ -448,11 +442,9 @@ class LinkController extends BaseController
             'trojan'          => '?sub=4',
             // apps
             'ssa'             => '?list=ssa',
-            'ssd'             => '?ssd=1',
+            'anxray'		  => '?anxray=1',
             'clash'           => '?clash=1',
             'clash_provider'  => '?list=clash',
-            'clashr'          => '?clash=2',
-            'clashr_provider' => '?list=clashr',
             'surge'           => '?surge=' . $int,
             'surge_node'      => '?list=surge',
             'surge2'          => '?surge=2',
@@ -489,14 +481,14 @@ class LinkController extends BaseController
             case 'ssa':
                 $return = AppURI::getSSJSON($item);
                 break;
+            case 'anxray':
+                $return = AppURI::getAnXrayURI($item);
+                break;	
             case 'surge':
                 $return = AppURI::getSurgeURI($item, 3);
                 break;
             case 'clash':
                 $return = AppURI::getClashURI($item);
-                break;
-            case 'clashr':
-                $return = AppURI::getClashURI($item, true);
                 break;
             case 'v2rayn':
                 $return = AppURI::getV2RayNURI($item);
@@ -539,7 +531,6 @@ class LinkController extends BaseController
             switch ($list) {
                 case 'ssa':
                 case 'clash':
-                case 'clashr':
                     $return = array_merge($return, self::getListExtend($user, $list));
                     break;
                 default:
@@ -558,7 +549,6 @@ class LinkController extends BaseController
                 return json_encode($return, 320);
                 break;
             case 'clash':
-            case 'clashr':
                 return \Symfony\Component\Yaml\Yaml::dump(['proxies' => $return], 4, 2);
             case 'kitsunebi':
             case 'quantumult':
@@ -595,6 +585,7 @@ class LinkController extends BaseController
             $info_array[] = $expire_in;
         }
         $baseUrl = explode('//', $_ENV['baseUrl'])[1];
+        $baseUrl = explode('/', $baseUrl)[0];
         $Extend = [
             'remark'          => '',
             'type'            => '',
@@ -603,7 +594,7 @@ class LinkController extends BaseController
             'port'            => 10086,
             'method'          => 'chacha20-ietf',
             'passwd'          => $user->passwd,
-            'id'              => $user->getUuid(),
+            'id'              => $user->uuid,
             'aid'             => 0,
             'net'             => 'tcp',
             'headerType'      => 'none',
@@ -674,7 +665,7 @@ class LinkController extends BaseController
             $Profiles = ($surge == 2 ? $_ENV['Surge2_DefaultProfiles'] : $_ENV['Surge_DefaultProfiles']);
         }
 
-        return ConfController::getSurgeConfs($user, $All_Proxy, $Nodes, $_ENV[$variable][$Profiles]);
+        return ConfGenerate::getSurgeConfs($user, $All_Proxy, $Nodes, $_ENV[$variable][$Profiles]);
     }
 
     /**
@@ -791,7 +782,7 @@ class LinkController extends BaseController
             $Profiles = $_ENV['Surfboard_DefaultProfiles']; // 默认策略组
         }
 
-        return ConfController::getSurgeConfs($user, $All_Proxy, $Nodes, $_ENV['Surfboard_Profiles'][$Profiles]);
+        return ConfGenerate::getSurgeConfs($user, $All_Proxy, $Nodes, $_ENV['Surfboard_Profiles'][$Profiles]);
     }
 
     /**
@@ -808,11 +799,10 @@ class LinkController extends BaseController
     {
         $subInfo = self::getSubinfo($user, $clash);
         $userapiUrl = $subInfo['clash'];
-        $ssr_support = ($clash == 2 ? true : false);
         $items = URL::getNew_AllItems($user, $Rule);
         $Proxys = [];
         foreach ($items as $item) {
-            $Proxy = AppURI::getClashURI($item, $ssr_support);
+            $Proxy = AppURI::getClashURI($item);
             if ($Proxy !== null) {
                 $Proxys[] = $Proxy;
             }
@@ -824,66 +814,23 @@ class LinkController extends BaseController
             $Profiles = $_ENV['Clash_DefaultProfiles']; // 默认策略组
         }
 
-        return ConfController::getClashConfs($user, $Proxys, $_ENV['Clash_Profiles'][$Profiles]);
+        return ConfGenerate::getClashConfs($user, $Proxys, $_ENV['Clash_Profiles'][$Profiles]);
     }
 
-    /**
-     * SSD 订阅
-     *
-     * @param User  $user 用户
-     * @param int   $ssd  订阅类型
-     * @param array $opts request
-     * @param array $Rule 节点筛选规则
-     *
-     * @return string
-     */
-    public static function getSSD($user, $ssd, $opts, $Rule)
+    public static function getAnXray($user, $anxray, $opts, $Rule)
     {
-        if (!URL::SSCanConnect($user)) {
-            return null;
+        $subInfo = self::getSubinfo($user, $anxray);
+        $All_Proxy  = '';
+        $userapiUrl = $subInfo['anxray'];	
+        $items = URL::getNew_AllItems($user, $Rule); 
+        foreach ($items as $item) {
+                $out = AppURI::getAnXrayURI($item);	
+                if ($out !== null) {
+                  $All_Proxy .= $out . PHP_EOL;
+                }
         }
-        $array_all                  = [];
-        $array_all['airport']       = $_ENV['appName'];
-        $array_all['port']          = $user->port;
-        $array_all['encryption']    = $user->method;
-        $array_all['password']      = $user->passwd;
-        $array_all['traffic_used']  = Tools::flowToGB($user->u + $user->d);
-        $array_all['traffic_total'] = Tools::flowToGB($user->transfer_enable);
-        $array_all['expiry']        = $user->class_expire;
-        $array_all['url']           = self::getSubinfo($user, 0)['ssd'];
-        $plugin_options             = '';
-        if (strpos($user->obfs, 'http') != false) {
-            $plugin_options = 'obfs=http';
-        }
-        if (strpos($user->obfs, 'tls') != false) {
-            $plugin_options = 'obfs=tls';
-        }
-        if ($plugin_options != '') {
-            $array_all['plugin'] = 'simple-obfs';
-            $array_all['plugin_options'] = $plugin_options;
-            if ($user->obfs_param != '') {
-                $array_all['plugin_options'] .= ';obfs-host=' . $user->obfs_param;
-            }
-        }
-        $array_server = [];
-        $server_index = 1;
-        $Rule['type'] = 'ss';
-        $nodes = URL::getNew_AllItems($user, $Rule);
-        foreach ($nodes as $item) {
-            if ($item['type'] != 'ss') continue;
-            $server = AppURI::getSSDURI($item);
-            if ($server !== null) {
-                $server['id'] = $server_index;
-                $array_server[] = $server;
-                $server_index++;
-            }
-        }
-        $array_all['servers'] = $array_server;
-        $json_all = json_encode($array_all, 320);
-
-        return 'ssd://' . base64_encode($json_all);
+        return base64_encode($All_Proxy);
     }
-
     /**
      * 通用订阅，ssr & v2rayn
      *
