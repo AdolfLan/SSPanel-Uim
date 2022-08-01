@@ -289,6 +289,11 @@
 
                                     <div class="tab-pane fade" id="payjs">
                                         <p class="form-control-guide"><i class="material-icons">info</i>此处申请： <a href="https://payjs.cn" target="view_window">https://payjs.cn</a></p>
+                                        <!-- payjs_url -->
+                                        <div class="form-group form-group-label">
+                                            <label class="floating-label">payjs_url</label>
+                                            <input class="form-control maxwidth-edit" id="payjs_url" value="{$settings['payjs_url']}">
+                                        </div>
                                         <!-- payjs_mchid -->
                                         <div class="form-group form-group-label">
                                             <label class="floating-label">payjs_mchid</label>
@@ -350,15 +355,17 @@
                                         <button id="submit_theadpay" type="submit" class="btn btn-block btn-brand">提交</button>
                                     </div>
 
-                                    <div class="tab-pane fade" id="stripe">
+                                    <div class="tab-pane fade" id="stripe_card">
                                         <p class="form-control-guide"><i class="material-icons">warning</i>提供虚拟专用网络业务符合 Stripe 用户协议，但可能不符合 Stripe 提供的部分支付通道（如支付宝、微信）用户协议，相关支付通道可能存在被关闭的风险</p>
                                         <h5>支付渠道</h5>
-                                        <!-- stripe_card -->
+                                        <!-- stripe_card_select -->
                                         <div class="form-group form-group-label">
                                             <label class="floating-label">银行卡支付</label>
-                                            <select id="stripe_card" class="form-control maxwidth-edit">
-                                                <option value="1" {if $settings['stripe_card'] == true}selected{/if}>启用</option>
-                                                <option value="0" {if $settings['stripe_card'] == false}selected{/if}>停用</option>
+                                            <select id="stripe_card_select" class="form-control maxwidth-edit">
+                                                <option value="0">停用</option>
+                                                <option value="1" {if $settings['stripe_card'] == true}selected{/if}>
+                                                    启用
+                                                </option>
                                             </select>
                                         </div>
                                         <h5>支付设置</h5>
@@ -447,6 +454,34 @@
                                         
                                         <button id="submit_f2f_pay" type="submit" class="btn btn-block btn-brand">提交</button>
                                     </div>
+                               
+								
+								<div class="tab-pane fade" id="epay">
+                                        <p class="form-control-guide"><i class="material-icons">info</i> SSPanel-UIM Dev Team提醒您注意：易支付商家经常跑路！造成的损失由您自行承担</p>
+                                        <!-- epay_url -->
+                                        <div class="form-group form-group-label">
+                                            <label class="floating-label">易支付URL</label>
+                                            <input class="form-control maxwidth-edit" id="epay_url" value="{$settings['epay_url']}">
+											<p class="form-control-guide"><i class="material-icons">info</i>不同易支付url后缀不同，1：域名后面带/ 2：域名后面带submit.php/</p>
+                                        </div>
+                                        <!-- epay_pid -->
+                                        <div class="form-group form-group-label">
+                                            <label class="floating-label">商户ID</label>
+                                            <input class="form-control maxwidth-edit" id="epay_pid" value="{$settings['epay_pid']}">
+                                            <p class="form-control-guide"><i class="material-icons">info</i>必填</p>
+                                        </div>
+                                        <!-- epay_key -->
+                                        <div class="form-group form-group-label">
+                                            <label class="floating-label">商户Key</label>
+											<input class="form-control maxwidth-edit" id="epay_key" value="{$settings['epay_key']}">
+                                        
+											<p class="form-control-guide"><i class="material-icons">info</i>必填</p>
+                                        </div>
+                                        
+                                       
+                                        
+                                        <button id="submit_e_pay" type="submit" class="btn btn-block btn-brand">提交</button>
+                                     </div>
                                 </div>
 
                                 <div class="tab-pane fade" id="customer_service_system_settings">
@@ -913,7 +948,36 @@
         })
     })
 </script>
-
+<script>
+    window.addEventListener('load', () => {
+        $$.getElementById('submit_e_pay').addEventListener('click', () => {
+            $.ajax({
+                type: "POST",
+                url: "/admin/setting",
+                dataType: "json",
+                data: {
+                    class: 'e_pay',
+                    epay_url: $$getValue('epay_url'),
+                    epay_pid: $$getValue('epay_pid'),
+                    epay_key: $$getValue('epay_key')
+                    
+                },
+                success: data => {
+                    $("#result").modal();
+                    $$.getElementById('msg').innerHTML = data.msg;
+                    if (data.ret) {
+                        window.setTimeout("location.href='/admin/setting'", {$config['jump_delay']});
+                    }
+                },
+                error: jqXHR => {
+                    alert(`发生错误：${
+                            jqXHR.status
+                            }`);
+                }
+            })
+        })
+    })
+</script>
 <script>
     window.addEventListener('load', () => {
         $$.getElementById('submit_payment').addEventListener('click', () => {
@@ -1288,6 +1352,7 @@
                 dataType: "json",
                 data: {
                     class: 'payjs_pay',
+                    payjs_url: $$getValue('payjs_url'),
                     payjs_mchid: $$getValue('payjs_mchid'),
                     payjs_key: $$getValue('payjs_key')
                 },
@@ -1441,7 +1506,7 @@
                 dataType: "json",
                 data: {
                     class: 'stripe',
-                    stripe_card: $$getValue('stripe_card'),
+                    stripe_card: $$getValue('stripe_card_select'),
                     stripe_currency: $$getValue('stripe_currency'),
                     stripe_min_recharge: $$getValue('stripe_min_recharge'),
                     stripe_max_recharge: $$getValue('stripe_max_recharge'),

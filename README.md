@@ -1,4 +1,4 @@
-<img src="https://cdn.jsdelivr.net/npm/skx@0.1.3/img/uim-logo-round.png" alt="logo" width="130" height="130" align="left" />
+<img src="https://fastly.jsdelivr.net/npm/skx@0.1.3/img/uim-logo-round.png" alt="logo" width="130" height="130" align="left" />
 
 <h1>SSPanel UIM</h1>
 
@@ -11,7 +11,7 @@
 [![Telegram Channel](https://img.shields.io/badge/news-t.me%2Fsspanel_uim-0d86d7?style=flat-square)](https://t.me/sspanel_uim)
 [![Telegram Chat](https://img.shields.io/badge/chat-t.me%2Fssunion-0d86d7?style=flat-square)](https://t.me/ssunion)
 
-[使用文档](https://wiki.sspanel.org) | [更新日志](https://github.com/Anankke/SSPanel-Uim/releases) | [配套SS/SSR后端](https://github.com/Anankke/shadowsocks-mod) | [Telegram 频道](https://t.me/sspanel_uim) | [Telegram 水群](https://t.me/ssunion) | [API 文档](https://marcosteam.gitbook.io/sspanel-api/)
+[使用文档](https://wiki.sspanel.org) | [配套SS/SSR后端](https://github.com/Anankke/shadowsocks-mod) | [配套Trojan后端](https://github.com/sspanel-uim/TrojanX) | [Telegram 频道](https://t.me/sspanel_uim) | [Telegram 水群](https://t.me/ssunion) | [后端 API 文档](https://github.com/sspanel-uim/API-documents) | [WebAPI 文档](https://github.com/sspanel-uim/WebAPI-documents)
 
 ## 简介
 
@@ -19,8 +19,9 @@ SSPanel UIM 是一款专为 Shadowsocks / ShadowsocksR / V2Ray / Trojan 设计�
 
 ## 特性
 
-- 集成支付宝当面付，PAYJS，码支付，Paymentwall等超过 8 种支付系统
-- 重构面板首页、节点列表、商品列表；新增 SPA（Single Page Apps）版 UI
+- 集成支付宝当面付，PAYJS，Paymentwall 等多个支付系统
+- 重构面板首页、节点列表、商品列表
+- 新增 SPA（Single Page Apps）版 UI
 - 商品增加同时连接设备数，用户限速属性
 - 新用户注册现金奖励、用户常规端口切换与指定
 - 公共库文件加载使用 jsDelivr
@@ -33,20 +34,21 @@ SSPanel UIM 是一款专为 Shadowsocks / ShadowsocksR / V2Ray / Trojan 设计�
 SSPanel UIM 的需要以下程序才能正常的安装和运行：
 
 - Git
-- MySQL
-- PHP 7.2+
+- PHP 8.0+
 - Composer
+- MySQL / MariaDB
 
-SSPanel UIM 支持安装在 LNMP、宝塔面板、Plesk、Oneinstack 等集成环境中。安装教程请参阅 [文档](https://wiki.sspanel.org)。
+SSPanel UIM 支持安装在 LNMP、CloudPanel 等集成环境中。安装教程请参阅 [文档](https://wiki.sspanel.org)。
 
 ## 演示
 
-[演示站](https://demo.sspanel.org/) 每天更新 `dev` 分支最新源码。
+### new-feat 分支
+
+[演示站](https://demo.sspanel.org)
 
 ```
 账号：admin@sspanel.org
 密码：password
-mukey ShirakamiFubuki
 ```
 
 ## 文档
@@ -140,7 +142,10 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 
 - Wiki 维护与重写部分安装教程
 - 面板 Bug 修复与维护
-- 前端公共库版本更新
+
+[**Irohaede**](https://github.com/Irohaede)
+
+- TrojanX 开发与维护
 
 </details>
 
@@ -162,5 +167,6 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 
 #### M1Screw
 
-- [Vultr-不用我多解釋了吧](https://www.vultr.com/?ref=8941355-8H)
+- [Vultr](https://www.vultr.com/?ref=8941355-8H)
+- 返利将会被用于维护 SSPanel-UIM 基础设施，比如 RPM/DEB 包的 Mirror 服务器，自动构建服务器，项目相关的域名等。
 

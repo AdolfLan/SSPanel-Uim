@@ -19,6 +19,8 @@ $_ENV['appName']    = 'SSPanel-UIM';                      //站点名称
 $_ENV['baseUrl']    = 'https://sspanel.host';               //站点地址
 $_ENV['muKey']      = 'NimaQu';                       //用于校验魔改后端请求，可以随意修改，但请保持前后端一致，否则节点不能工作！
 
+$_ENV['enableAdminApi'] = false;                      // 是否启用 Admin API, 如果不知道此项用途请保持为 false
+$_ENV['adminApiToken']  = 'ChangeMeToSafeKey';        // Admin API 的 Token, 请生成为高强度的 Token
 
 //数据库设置--------------------------------------------------------------------------------------------
 // db_host|db_socket 二选一，若设置 db_socket 则 db_host 会被忽略，不用请留空。若数据库在本机上推荐用 db_socket。
@@ -35,6 +37,11 @@ $_ENV['db_charset']   = 'utf8mb4';
 $_ENV['db_collation'] = 'utf8mb4_unicode_ci';
 $_ENV['db_prefix']    = '';
 
+//流媒体解锁 如下设置将使397，297号节点复用4号节点的检测结果 使用时去掉注释符 //
+$_ENV['streaming_media_unlock_multiplexing'] = [
+    //'397' => '4',
+    //'297' => '4',
+];
 
 //邮件设置--------------------------------------------------------------------------------------------
 $_ENV['sendPageLimit']      = 50;           //发信分页 解决大站发公告超时问题
@@ -325,7 +332,11 @@ $_ENV['userCenterClient']     = [
 $_ENV['detect_gfw_interval']             = 3600;                                                               //检测间隔，单位：秒，低于推荐值会爆炸
 $_ENV['detect_gfw_port']                 = 22;                                                                 //所有节点服务器都打开的TCP端口，常用的为22（SSH端口）
 $_ENV['detect_gfw_url']                  = 'http://cn-sh-tcping.sspanel.org:8080/tcping?ip={ip}&port={port}'; //检测节点是否被gfw墙了的API的URL
-$_ENV['detect_gfw_judge']                = '$json_tcping[\'status\']=="true"';                                 //判断是否被墙的依据，json_tcping为上方URL返回的json数组
+//判断是否被墙的依据，json_tcping为上方URL返回的json数组
+$_ENV['detect_gfw_judge']                = function($json_tcping): bool {
+    return $json_tcping['status'] === "true";
+};
+
 $_ENV['detect_gfw_count']                = '3';                                                                //尝试次数
 
 #离线检测

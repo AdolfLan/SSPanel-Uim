@@ -9,18 +9,18 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachSystem [ "armv7l-linux" "x86_64-linux" ] (system: let
+    flake-utils.lib.eachSystem [ "armv7l-linux" "x86_64-linux" "x86_64-darwin" ] (system: let
       pkgs = import nixpkgs {
         system = system;
       };
     in
     {
       devShell = (pkgs.mkShell {
-        buildInputs = with pkgs; let
-          phpWithExtensions = php74.withExtensions ({ enabled, all }:
+        buildInputs = with pkgs; with php80Packages; let
+          phpWithExtensions = php.withExtensions ({ enabled, all }:
             enabled ++ [ all.imagick all.xdebug ]);
         in [
-          phpWithExtensions php74Packages.composer
+          phpWithExtensions composer
         ];
       });
     }

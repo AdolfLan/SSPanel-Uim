@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="/theme/material/css/user.min.css">
     <!-- jquery -->
     <script src="https://cdn.staticfile.org/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js"></script>
+    <script src="https://fastly.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js"></script>
     <!-- js -->
     <script src="/assets/js/fuck.min.js"></script>
     <style>
@@ -86,6 +86,9 @@
                     <ul class="menu-collapse collapse in" id="ui_menu_use">
                         <li>
                             <a href="/user/node"><i class="icon icon-lg">airplanemode_active</i>&nbsp;节点列表</a>
+                        </li>
+                        <li>
+                            <a href="/user/media"><i class="icon icon-lg">ondemand_video</i>&nbsp;流媒体解锁</a>
                         </li>
                         <li>
                             <a href="/user/announcement"><i class="icon icon-lg">announcement</i>&nbsp;站点公告</a>
