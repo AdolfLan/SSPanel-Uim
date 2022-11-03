@@ -33,7 +33,11 @@ final class AuthController extends BaseController
      */
     public function login(Request $request, Response $response, array $args)
     {
-        $captcha = Captcha::generate();
+        $captcha = [];
+
+        if (Setting::obtain('enable_login_captcha') === true) {
+            $captcha = Captcha::generate();
+        }
 
         if ($_ENV['enable_telegram_login'] === true) {
             $login_text = TelegramSessionManager::addLoginSession();
@@ -45,33 +49,13 @@ final class AuthController extends BaseController
             $login_number = '';
         }
 
-        if (Setting::obtain('enable_login_captcha') === true) {
-            $geetest_html = $captcha['geetest'];
-        } else {
-            $geetest_html = null;
-        }
-
         return $this->view()
             ->assign('login_token', $login_token)
-            ->assign('geetest_html', $geetest_html)
             ->assign('login_number', $login_number)
             ->assign('base_url', $_ENV['baseUrl'])
             ->assign('telegram_bot', $_ENV['telegram_bot'])
-            ->assign('recaptcha_sitekey', $captcha['recaptcha'])
+            ->assign('captcha', $captcha)
             ->display('auth/login.tpl');
-    }
-
-    /**
-     * @param array     $args
-     */
-    public function getCaptcha(Request $request, Response $response, array $args)
-    {
-        $captcha = Captcha::generate();
-        return $response->withJson([
-            'recaptchaKey' => $captcha['recaptcha'],
-            'GtSdk' => $captcha['geetest'],
-            'respon' => 1,
-        ]);
     }
 
     /**
@@ -79,11 +63,6 @@ final class AuthController extends BaseController
      */
     public function loginHandle(Request $request, Response $response, array $args)
     {
-        $code = $request->getParam('code');
-        $passwd = $request->getParam('passwd');
-        $rememberMe = $request->getParam('remember_me');
-        $email = strtolower(trim($request->getParam('email')));
-
         if (Setting::obtain('enable_login_captcha') === true) {
             $ret = Captcha::verify($request->getParams());
             if (! $ret) {
@@ -93,6 +72,11 @@ final class AuthController extends BaseController
                 ]);
             }
         }
+
+        $code = $request->getParam('code');
+        $passwd = $request->getParam('passwd');
+        $rememberMe = $request->getParam('remember_me');
+        $email = strtolower(trim($request->getParam('email')));
 
         $user = User::where('email', $email)->first();
         if ($user === null) {
@@ -163,14 +147,18 @@ final class AuthController extends BaseController
      */
     public function register(Request $request, Response $response, $next)
     {
+        $captcha = [];
+
+        if (Setting::obtain('enable_reg_captcha') === true) {
+            $captcha = Captcha::generate();
+        }
+
         $ary = $request->getQueryParams();
         $code = '';
         if (isset($ary['code'])) {
             $antiXss = new AntiXSS();
             $code = $antiXss->xss_clean($ary['code']);
         }
-
-        $captcha = Captcha::generate();
 
         if ($_ENV['enable_telegram_login'] === true) {
             $login_text = TelegramSessionManager::addLoginSession();
@@ -182,21 +170,14 @@ final class AuthController extends BaseController
             $login_number = '';
         }
 
-        if (Setting::obtain('enable_reg_captcha') === true) {
-            $geetest_html = $captcha['geetest'];
-        } else {
-            $geetest_html = null;
-        }
-
         return $this->view()
             ->assign('code', $code)
             ->assign('base_url', $_ENV['baseUrl'])
             ->assign('login_token', $login_token)
             ->assign('login_number', $login_number)
-            ->assign('geetest_html', $geetest_html)
             ->assign('telegram_bot', $_ENV['telegram_bot'])
-            ->assign('recaptcha_sitekey', $captcha['recaptcha'])
             ->assign('enable_email_verify', Setting::obtain('reg_email_verify'))
+            ->assign('captcha', $captcha)
             ->display('auth/register.tpl');
     }
 
@@ -221,20 +202,20 @@ final class AuthController extends BaseController
                 return ResponseHelper::error($response, '此邮箱已经注册');
             }
             $ipcount = EmailVerify::where('ip', '=', $_SERVER['REMOTE_ADDR'])
-                ->where('expire_in', '>', time())
+                ->where('expire_in', '>', \time())
                 ->count();
             if ($ipcount >= Setting::obtain('email_verify_ip_limit')) {
                 return ResponseHelper::error($response, '此IP请求次数过多');
             }
             $mailcount = EmailVerify::where('email', '=', $email)
-                ->where('expire_in', '>', time())
+                ->where('expire_in', '>', \time())
                 ->count();
             if ($mailcount >= 3) {
                 return ResponseHelper::error($response, '此邮箱请求次数过多');
             }
-            $code = Tools::genRandomNum(6);
+            $code = Tools::genRandomChar(6);
             $ev = new EmailVerify();
-            $ev->expire_in = time() + Setting::obtain('email_verify_ttl');
+            $ev->expire_in = \time() + Setting::obtain('email_verify_ttl');
             $ev->ip = $_SERVER['REMOTE_ADDR'];
             $ev->email = $email;
             $ev->code = $code;
@@ -246,7 +227,7 @@ final class AuthController extends BaseController
                     'auth/verify.tpl',
                     [
                         'code' => $code,
-                        'expire' => date('Y-m-d H:i:s', time() + Setting::obtain('email_verify_ttl')),
+                        'expire' => date('Y-m-d H:i:s', \time() + Setting::obtain('email_verify_ttl')),
                     ],
                     []
                 );
@@ -269,7 +250,7 @@ final class AuthController extends BaseController
             return ResponseHelper::error($response, '暂时不对外开放注册');
         }
 
-        if ($code === '') {
+        if (Setting::obtain('reg_mode') === 'invite' && $code === '') {
             return ResponseHelper::error($response, '注册需要填写邀请码');
         }
 
@@ -293,7 +274,7 @@ final class AuthController extends BaseController
         // do reg user
         $user = new User();
         $antiXss = new AntiXSS();
-        $current_timestamp = time();
+        $current_timestamp = \time();
 
         $user->user_name = $antiXss->xss_clean($name);
         $user->email = $email;
@@ -310,15 +291,15 @@ final class AuthController extends BaseController
         $user->protocol_param = $configs['sign_up_for_protocol_param'];
         $user->obfs = $configs['sign_up_for_obfs'];
         $user->obfs_param = $configs['sign_up_for_obfs_param'];
-        $user->forbidden_ip = $_ENV['reg_forbidden_ip'];
-        $user->forbidden_port = $_ENV['reg_forbidden_port'];
+        $user->forbidden_ip = Setting::obtain('reg_forbidden_ip');
+        $user->forbidden_port = Setting::obtain('reg_forbidden_port');
         $user->im_type = $imtype;
         $user->im_value = $antiXss->xss_clean($imvalue);
 
         $user->transfer_enable = Tools::toGB($configs['sign_up_for_free_traffic']);
         $user->invite_num = $configs['sign_up_for_invitation_codes'];
-        $user->auto_reset_day = $_ENV['free_user_reset_day'];
-        $user->auto_reset_bandwidth = $_ENV['free_user_reset_bandwidth'];
+        $user->auto_reset_day = Setting::obtain('free_user_reset_day');
+        $user->auto_reset_bandwidth = Setting::obtain('free_user_reset_bandwidth');
         $user->money = 0;
         $user->sendDailyMail = $configs['sign_up_for_daily_report'];
 
@@ -346,16 +327,20 @@ final class AuthController extends BaseController
         $secret = $ga->createSecret();
         $user->ga_token = $secret;
         $user->ga_enable = 0;
-        $user->class_expire = date('Y-m-d H:i:s', time() + $configs['sign_up_for_class_time'] * 86400);
+        $user->class_expire = date('Y-m-d H:i:s', \time() + $configs['sign_up_for_class_time'] * 86400);
         $user->class = $configs['sign_up_for_class'];
         $user->node_connector = $configs['connection_device_limit'];
         $user->node_speedlimit = $configs['connection_rate_limit'];
-        $user->expire_in = date('Y-m-d H:i:s', time() + $configs['sign_up_for_free_time'] * 86400);
+        $user->expire_in = date('Y-m-d H:i:s', \time() + $configs['sign_up_for_free_time'] * 86400);
         $user->reg_date = date('Y-m-d H:i:s');
         $user->reg_ip = $_SERVER['REMOTE_ADDR'];
         $user->theme = $_ENV['theme'];
-        $groups = explode(',', $_ENV['random_group']);
-        $user->node_group = $groups[array_rand($groups)];
+        $random_group = Setting::obtain('random_group');
+        if ($random_group === '') {
+            $user->node_group = 0;
+        } else {
+            $user->node_group = $random_group[array_rand(explode(',', $random_group))];
+        }
 
         if ($user->save()) {
             Auth::login($user->id, 3600);
@@ -376,6 +361,13 @@ final class AuthController extends BaseController
             return ResponseHelper::error($response, '未开放注册。');
         }
 
+        if (Setting::obtain('enable_reg_captcha') === true) {
+            $ret = Captcha::verify($request->getParams());
+            if (! $ret) {
+                return ResponseHelper::error($response, '系统无法接受您的验证结果，请刷新页面后重试。');
+            }
+        }
+
         $name = $request->getParam('name');
         $email = $request->getParam('email');
         $email = trim($email);
@@ -384,7 +376,7 @@ final class AuthController extends BaseController
         $repasswd = $request->getParam('repasswd');
         $code = trim($request->getParam('code'));
 
-        if ($_ENV['enable_reg_im'] === true) {
+        if (Setting::obtain('enable_reg_im') === true) {
             $imtype = $request->getParam('im_type');
             $imvalue = $request->getParam('im_value');
             if ($imtype === '' || $imvalue === '') {
@@ -397,13 +389,6 @@ final class AuthController extends BaseController
         } else {
             $imtype = 1;
             $imvalue = '';
-        }
-
-        if (Setting::obtain('enable_reg_captcha') === true) {
-            $ret = Captcha::verify($request->getParams());
-            if (! $ret) {
-                return ResponseHelper::error($response, '系统无法接受您的验证结果，请刷新页面后重试。');
-            }
         }
 
         // check email format
@@ -421,7 +406,7 @@ final class AuthController extends BaseController
             $email_code = trim($request->getParam('emailcode'));
             $mailcount = EmailVerify::where('email', '=', $email)
                 ->where('code', '=', $email_code)
-                ->where('expire_in', '>', time())
+                ->where('expire_in', '>', \time())
                 ->first();
             if ($mailcount === null) {
                 return ResponseHelper::error($response, '您的邮箱验证码不正确');
@@ -526,12 +511,12 @@ final class AuthController extends BaseController
         }
         sort($data_check_arr);
         $data_check_string = implode("\n", $data_check_arr);
-        $secret_key = hash('sha256', $bot_token, true);
+        $secret_key = \hash('sha256', $bot_token, true);
         $hash = hash_hmac('sha256', $data_check_string, $secret_key);
         if (strcmp($hash, $check_hash) !== 0) {
             return false; // Bad Data :(
         }
-        if (time() - $auth_data['auth_date'] > 300) { // Expire @ 5mins
+        if (\time() - $auth_data['auth_date'] > 300) { // Expire @ 5mins
             return false;
         }
         return true; // Good to Go

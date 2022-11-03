@@ -98,7 +98,7 @@ final class NodeController extends BaseController
         $success = true;
         $server_list = explode(';', $node->server);
 
-        if (Tools::isIp($req_node_ip)) {
+        if (Tools::isIPv4($req_node_ip)) {
             $success = $node->changeNodeIp($req_node_ip);
         } else {
             $success = $node->changeNodeIp($server_list[0]);
@@ -114,6 +114,9 @@ final class NodeController extends BaseController
         $node->node_class = $request->getParam('class');
         $node->node_bandwidth_limit = $request->getParam('node_bandwidth_limit') * 1024 * 1024 * 1024;
         $node->bandwidthlimit_resetday = $request->getParam('bandwidthlimit_resetday');
+        $node->password = Tools::genRandomChar(32);
+        $node->load = '';
+        $node->uptime = 0;
 
         $node->save();
 
@@ -193,7 +196,7 @@ final class NodeController extends BaseController
         $success = true;
         $server_list = explode(';', $node->server);
 
-        if (Tools::isIp($req_node_ip)) {
+        if (Tools::isIPv4($req_node_ip)) {
             $success = $node->changeNodeIp($req_node_ip);
         } else {
             $success = $node->changeNodeIp($server_list[0]);
@@ -237,6 +240,25 @@ final class NodeController extends BaseController
     }
 
     /**
+     * @param array     $args
+     */
+    public function resetNodePassword(Request $request, Response $response, array $args)
+    {
+        $id = $args['id'];
+        $node = Node::find($id);
+        $password = Tools::genRandomChar(32);
+
+        $node->password = $password;
+
+        $node->save();
+
+        return $response->withJson([
+            'ret' => 1,
+            'msg' => '重置通讯密钥成功',
+        ]);
+    }
+
+    /**
      * 后台删除指定节点
      *
      * @param array     $args
@@ -258,7 +280,7 @@ final class NodeController extends BaseController
                 Telegram::send(
                     str_replace(
                         '%node_name%',
-                        $request->getParam('name'),
+                        $node->name,
                         Setting::obtain('telegram_delete_node_text')
                     )
                 );
@@ -286,10 +308,10 @@ final class NodeController extends BaseController
         $query = Node::getTableDataFromAdmin(
             $request,
             static function (&$order_field): void {
-                if (in_array($order_field, ['op'])) {
+                if (\in_array($order_field, ['op'])) {
                     $order_field = 'id';
                 }
-                if (in_array($order_field, ['outaddress'])) {
+                if (\in_array($order_field, ['outaddress'])) {
                     $order_field = 'server';
                 }
             }
@@ -298,27 +320,30 @@ final class NodeController extends BaseController
         $data = [];
         foreach ($query['datas'] as $value) {
             /** @var Node $value */
-
-            $tempdata = [];
-            $tempdata['op'] = '<a class="btn btn-brand" href="/admin/node/' . $value->id . '/edit">编辑</a> <a class="btn btn-brand-accent" id="delete" value="' . $value->id . '" href="javascript:void(0);" onClick="delete_modal_show(\'' . $value->id . '\')">删除</a>';
-            $tempdata['id'] = $value->id;
-            $tempdata['name'] = $value->name;
-            $tempdata['type'] = $value->type();
-            $tempdata['sort'] = $value->sort();
-            $tempdata['server'] = $value->server;
-            $tempdata['outaddress'] = $value->getOutAddress();
-            $tempdata['node_ip'] = $value->node_ip;
-            $tempdata['info'] = $value->info;
-            $tempdata['status'] = $value->status;
-            $tempdata['traffic_rate'] = $value->traffic_rate;
-            $tempdata['node_group'] = $value->node_group;
-            $tempdata['node_class'] = $value->node_class;
-            $tempdata['node_speedlimit'] = $value->node_speedlimit;
-            $tempdata['node_bandwidth'] = Tools::flowToGB($value->node_bandwidth);
-            $tempdata['node_bandwidth_limit'] = Tools::flowToGB($value->node_bandwidth_limit);
-            $tempdata['bandwidthlimit_resetday'] = $value->bandwidthlimit_resetday;
-            $tempdata['node_heartbeat'] = $value->nodeHeartbeat();
-            $tempdata['mu_only'] = $value->muOnly();
+            $tempdata = [
+                'op' => <<<EOF
+                    <a class="btn btn-brand" href="/admin/node/{$value->id}/edit">编辑</a>
+                    <a class="btn btn-brand-accent" id="delete" value="{$value->id}" href="javascript:void(0);" onClick="delete_modal_show('{$value->id}')">删除</a>
+                EOF,
+                'id' => $value->id,
+                'name' => $value->name,
+                'type' => $value->type(),
+                'sort' => $value->sort(),
+                'server' => $value->server,
+                'outaddress' => $value->getOutAddress(),
+                'node_ip' => $value->node_ip,
+                'info' => $value->info,
+                'status' => $value->status,
+                'traffic_rate' => $value->traffic_rate,
+                'node_group' => $value->node_group,
+                'node_class' => $value->node_class,
+                'node_speedlimit' => $value->node_speedlimit,
+                'node_bandwidth' => Tools::flowToGB($value->node_bandwidth),
+                'node_bandwidth_limit' => Tools::flowToGB($value->node_bandwidth_limit),
+                'bandwidthlimit_resetday' => $value->bandwidthlimit_resetday,
+                'node_heartbeat' => $value->nodeHeartbeat(),
+                'mu_only' => $value->muOnly(),
+            ];
 
             $data[] = $tempdata;
         }

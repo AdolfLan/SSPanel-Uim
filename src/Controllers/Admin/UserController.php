@@ -6,7 +6,6 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Models\Bought;
-use App\Models\DetectBanLog;
 use App\Models\Setting;
 use App\Models\Shop;
 use App\Models\User;
@@ -53,9 +52,11 @@ final class UserController extends BaseController
             'last_ss_time' => '上次使用时间',
             'used_traffic' => '已用流量/GB',
             'enable_traffic' => '总流量/GB',
+            'transfer_total' => '账户累计使用流量/GB',
             'last_checkin_time' => '上次签到时间',
             'today_traffic' => '今日流量',
-            'enable' => '是否启用',
+            'is_banned' => '账户状态',
+            'banned_reason' => '封禁理由',
             'reg_date' => '注册时间',
             'reg_ip' => '注册IP',
             'auto_reset_day' => '免费用户流量重置日',
@@ -91,7 +92,7 @@ final class UserController extends BaseController
             ]);
         }
 
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (! Tools::isEmail($email)) {
             return $response->withJson([
                 'ret' => 0,
                 'msg' => '邮箱不规范',
@@ -101,7 +102,7 @@ final class UserController extends BaseController
         $configs = Setting::getClass('register');
         // do reg user
         $user = new User();
-        $current_timestamp = time();
+        $current_timestamp = \time();
         $pass = Tools::genRandomChar();
         $user->user_name = $email;
         $user->email = $email;
@@ -118,25 +119,25 @@ final class UserController extends BaseController
         $user->protocol_param = $configs['sign_up_for_protocol_param'];
         $user->obfs = $configs['sign_up_for_obfs'];
         $user->obfs_param = $configs['sign_up_for_obfs_param'];
-        $user->forbidden_ip = $_ENV['reg_forbidden_ip'];
-        $user->forbidden_port = $_ENV['reg_forbidden_port'];
+        $user->forbidden_ip = Setting::obtain('reg_forbidden_ip');
+        $user->forbidden_port = Setting::obtain('reg_forbidden_port');
         $user->im_type = 2;
         $user->im_value = $email;
         $user->transfer_enable = Tools::toGB($configs['sign_up_for_free_traffic']);
         $user->invite_num = $configs['sign_up_for_invitation_codes'];
-        $user->auto_reset_day = $_ENV['free_user_reset_day'];
-        $user->auto_reset_bandwidth = $_ENV['free_user_reset_bandwidth'];
+        $user->auto_reset_day = Setting::obtain('free_user_reset_day');
+        $user->auto_reset_bandwidth = Setting::obtain('free_user_reset_bandwidth');
         $user->money = ($money !== -1 ? $money : 0);
-        $user->class_expire = date('Y-m-d H:i:s', time() + $configs['sign_up_for_class_time'] * 86400);
+        $user->class_expire = date('Y-m-d H:i:s', \time() + $configs['sign_up_for_class_time'] * 86400);
         $user->class = $configs['sign_up_for_class'];
         $user->node_connector = $configs['connection_device_limit'];
         $user->node_speedlimit = $configs['connection_rate_limit'];
-        $user->expire_in = date('Y-m-d H:i:s', time() + $configs['sign_up_for_free_time'] * 86400);
+        $user->expire_in = date('Y-m-d H:i:s', \time() + $configs['sign_up_for_free_time'] * 86400);
         $user->reg_date = date('Y-m-d H:i:s');
         $user->reg_ip = $_SERVER['REMOTE_ADDR'];
         $user->theme = $_ENV['theme'];
 
-        $groups = explode(',', $_ENV['random_group']);
+        $groups = explode(',', Setting::obtain('random_group'));
 
         $user->node_group = $groups[array_rand($groups)];
 
@@ -156,7 +157,7 @@ final class UserController extends BaseController
                     $bought = new Bought();
                     $bought->userid = $user->id;
                     $bought->shopid = $shop->id;
-                    $bought->datetime = time();
+                    $bought->datetime = \time();
                     $bought->renew = 0;
                     $bought->coupon = '';
                     $bought->price = $shop->price;
@@ -230,7 +231,8 @@ final class UserController extends BaseController
         $user->method = $request->getParam('method');
         $user->node_speedlimit = $request->getParam('node_speedlimit');
         $user->node_connector = $request->getParam('node_connector');
-        $user->enable = $request->getParam('enable');
+        $user->is_banned = $request->getParam('is_banned');
+        $user->banned_reason = $request->getParam('banned_reason');
         $user->is_admin = $request->getParam('is_admin');
         $user->ga_enable = $request->getParam('ga_enable');
         $user->node_group = $request->getParam('group');
@@ -244,24 +246,6 @@ final class UserController extends BaseController
 
         $user->forbidden_ip = str_replace(PHP_EOL, ',', $request->getParam('forbidden_ip'));
         $user->forbidden_port = str_replace(PHP_EOL, ',', $request->getParam('forbidden_port'));
-
-        // 手动封禁
-        $ban_time = (int) $request->getParam('ban_time');
-        if ($ban_time > 0) {
-            $user->enable = 0;
-            $end_time = date('Y-m-d H:i:s');
-            $user->last_detect_ban_time = $end_time;
-            $DetectBanLog = new DetectBanLog();
-            $DetectBanLog->user_name = $user->user_name;
-            $DetectBanLog->user_id = $user->id;
-            $DetectBanLog->email = $user->email;
-            $DetectBanLog->detect_number = '0';
-            $DetectBanLog->ban_time = $ban_time;
-            $DetectBanLog->start_time = strtotime('1989-06-04 00:05:00');
-            $DetectBanLog->end_time = strtotime($end_time);
-            $DetectBanLog->all_detect_number = $user->all_detect_number;
-            $DetectBanLog->save();
-        }
 
         if (! $user->save()) {
             return $response->withJson([
@@ -302,7 +286,7 @@ final class UserController extends BaseController
         $adminid = $request->getParam('adminid');
         $user = User::find($userid);
         $admin = User::find($adminid);
-        $expire_in = time() + 60 * 60;
+        $expire_in = \time() + 60 * 60;
 
         if (! $admin->is_admin || ! $user || ! Auth::getUser()->isLogin) {
             return $response->withJson([
@@ -388,9 +372,11 @@ final class UserController extends BaseController
                 'last_ss_time' => $value->lastSsTime(),
                 'used_traffic' => Tools::flowToGB($value->u + $value->d),
                 'enable_traffic' => Tools::flowToGB($value->transfer_enable),
+                'transfer_total' => Tools::flowToGB($value->transfer_total),
                 'last_checkin_time' => $value->lastCheckInTime(),
                 'today_traffic' => $value->todayUsedTraffic(),
-                'enable' => $value->enable === 1 ? '可用' : '禁用',
+                'is_banned' => $value->is_banned === 0 ? '正常' : '封禁',
+                'banned_reason' => $value->banned_reason,
                 'reg_date' => $value->reg_date,
                 'reg_ip' => $value->reg_ip,
                 'auto_reset_day' => $value->auto_reset_day,

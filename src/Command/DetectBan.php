@@ -26,7 +26,7 @@ final class DetectBan extends Command
             $user_logs = [];
             foreach ($new_logs as $log) {
                 // 分类各个用户的记录数量
-                if (! in_array($log->user_id, array_keys($user_logs))) {
+                if (! \in_array($log->user_id, array_keys($user_logs))) {
                     $user_logs[$log->user_id] = 0;
                 }
                 $user_logs[$log->user_id]++;
@@ -43,7 +43,7 @@ final class DetectBan extends Command
                 $user->all_detect_number += $value;
                 $user->save();
 
-                if ($user->enable === 0 || ($user->is_admin && $_ENV['auto_detect_ban_allow_admin'] === true) || in_array($user->id, $_ENV['auto_detect_ban_allow_users'])) {
+                if ($user->is_banned === 1 || ($user->is_admin && $_ENV['auto_detect_ban_allow_admin'] === true) || \in_array($user->id, $_ENV['auto_detect_ban_allow_users'])) {
                     // 如果用户已被封禁
                     // 如果用户是管理员
                     // 如果属于钦定用户
@@ -58,7 +58,7 @@ final class DetectBan extends Command
                     if ($detect_number >= $_ENV['auto_detect_ban_number']) {
                         $last_detect_ban_time = $user->last_detect_ban_time;
                         $end_time = date('Y-m-d H:i:s');
-                        $user->enable = 0;
+                        $user->is_banned = 1;
                         $user->last_detect_ban_time = $end_time;
                         $user->save();
                         $DetectBanLog = new DetectBanLog();
@@ -88,7 +88,7 @@ final class DetectBan extends Command
                         } else {
                             $last_detect_ban_time = $user->last_detect_ban_time;
                             $end_time = date('Y-m-d H:i:s');
-                            $user->enable = 0;
+                            $user->is_banned = 1;
                             $user->last_detect_ban_time = $end_time;
                             $user->save();
                             $DetectBanLog = new DetectBanLog();

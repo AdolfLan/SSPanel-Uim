@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Phinx\Db\Adapter\MysqlAdapter;
 use Phinx\Migration\AbstractMigration;
 
 final class InitDatabase extends AbstractMigration
@@ -17,12 +18,12 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('passwd', 'string', [ 'comment' => '节点密码' ])
             ->addColumn('uuid', 'string', [ 'comment' => 'UUID' ])
             ->addIndex([ 'uuid' ], [ 'unique' => true ])
-            ->addColumn('t', 'biginteger', [ 'default' => 0, 'signed' => false])
-            ->addColumn('u', 'biginteger', [ 'default' => 0, 'signed' => false])
-            ->addColumn('d', 'biginteger', [ 'default' => 0, 'signed' => false])
-            ->addColumn('transfer_enable', 'biginteger', [ 'comment' => '总流量', 'default' => 0, 'signed' => false ])
+            ->addColumn('t', 'biginteger', [ 'comment' => '最后使用时间', 'default' => 0, 'signed' => false])
+            ->addColumn('u', 'biginteger', [ 'comment' => '账户当前上传流量', 'default' => 0, 'signed' => false])
+            ->addColumn('d', 'biginteger', [ 'comment' => '账户当前下载流量', 'default' => 0, 'signed' => false])
+            ->addColumn('transfer_total', 'biginteger', [ 'comment' => '账户累计使用流量', 'default' => 0, 'signed' => false])
+            ->addColumn('transfer_enable', 'biginteger', [ 'comment' => '账户当前可用流量', 'default' => 0, 'signed' => false ])
             ->addColumn('port', 'integer', [ 'comment' => '用户端口' ])
-            ->addColumn('enable', 'boolean', [ 'comment' => '是否启用', 'default' => true ])
             ->addColumn('last_detect_ban_time', 'datetime', [ 'comment' => '最后一次被封禁的时间', 'default' => '1989-06-04 00:05:00' ])
             ->addColumn('all_detect_number', 'integer', [ 'comment' => '累计违规次数', 'default' => 0 ])
             ->addColumn('last_check_in_time', 'biginteger', [ 'comment' => '最后签到时间', 'default' => 0, 'signed' => false ])
@@ -46,13 +47,14 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('ga_token', 'string', [ ])
             ->addIndex([ 'ga_token' ], [ 'unique' => true ])
             ->addColumn('ga_enable', 'integer', [ 'default' => '0' ])
-            ->addColumn('remark', 'string', [ 'comment' => '备注', 'default' => '' ])
+            ->addColumn('remark', 'text', [ 'comment' => '备注', 'default' => '' ])
             ->addColumn('node_group', 'integer', [ 'comment' => '节点分组', 'default' => 0 ])
             ->addColumn('protocol', 'string', [ 'comment' => 'SS/SSR协议方式', 'default' => 'origin' ])
             ->addColumn('protocol_param', 'string', [ 'default' => '' ])
             ->addColumn('obfs', 'string', [ 'comment' => 'SS/SSR混淆方式', 'default' => 'plain' ])
             ->addColumn('obfs_param', 'string', [ 'default' => '' ])
-            ->addColumn('is_hide', 'integer', [ 'default' => 0 ])
+            ->addColumn('is_banned', 'integer', [ 'comment' => '是否封禁', 'default' => 0 ])
+            ->addColumn('banned_reason', 'string', [ 'comment' => '封禁理由', 'default' => '' ])
             ->addColumn('is_multi_user', 'integer', [ 'default' => 0 ])
             ->addColumn('telegram_id', 'biginteger', [ 'default' => 0 ])
             ->addColumn('expire_notified', 'boolean', [ 'default' => false])
@@ -69,8 +71,8 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('name', 'string', [])
             ->addColumn('type', 'integer', [])
             ->addColumn('server', 'string', [])
-            ->addColumn('custom_config', 'string', [])
-            ->addColumn('info', 'string', [ 'default' => '' ])
+            ->addColumn('custom_config', 'json', [ 'comment' => '自定义配置', 'default' => '{}' ])
+            ->addColumn('info', 'text', [ 'default' => '' ])
             ->addColumn('status', 'string', [ 'default' => '' ])
             ->addColumn('sort', 'integer', [])
             ->addColumn('traffic_rate', 'float', [ 'default' => 1 ])
@@ -86,6 +88,9 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('mu_only', 'boolean', [ 'default' => false ])
             ->addColumn('online', 'boolean', [ 'default' => true ])
             ->addColumn('gfw_block', 'boolean', [ 'default' => false ])
+            ->addColumn('password', 'string', [])
+            ->addColumn('load', 'string', ['default' => ''])
+            ->addColumn('uptime', 'integer', ['default' => 0])
             ->create();
 
         $this->table('alive_ip', [ 'id' => false, 'primary_key' => [ 'id' ]])
@@ -99,8 +104,8 @@ final class InitDatabase extends AbstractMigration
         $this->table('announcement', [ 'id' => false, 'primary_key' => [ 'id' ]])
             ->addColumn('id', 'integer', [ 'identity' => true ])
             ->addColumn('date', 'datetime', [])
-            ->addColumn('content', 'string', [])
-            ->addColumn('markdown', 'string', [])
+            ->addColumn('content', 'text', [])
+            ->addColumn('markdown', 'text', [])
             ->create();
 
         $this->table('blockip', [ 'id' => false, 'primary_key' => [ 'id' ]])
@@ -152,9 +157,9 @@ final class InitDatabase extends AbstractMigration
             ->create();
 
         $this->table('detect_ban_log', [ 'id' => false, 'primary_key' => [ 'id' ]])
-            ->addColumn('id', 'integer', [ 'identity' => true,'signed' => false ])
+            ->addColumn('id', 'integer', [ 'identity' => true, 'signed' => false ])
             ->addColumn('user_name', 'string', [ 'comment' => '用户名' ])
-            ->addColumn('user_id', 'biginteger', [ 'comment' => '用户 ID','signed' => false ])
+            ->addColumn('user_id', 'biginteger', [ 'comment' => '用户 ID', 'signed' => false ])
             ->addColumn('email', 'string', [ 'comment' => '用户邮箱' ])
             ->addColumn('detect_number', 'integer', [ 'comment' => '本次违规次数' ])
             ->addColumn('ban_time', 'integer', [ 'comment' => '本次封禁时长' ])
@@ -193,7 +198,7 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('to_email', 'string', [])
             ->addColumn('subject', 'string', [])
             ->addColumn('template', 'string', [])
-            ->addColumn('array', 'string', [])
+            ->addColumn('array', 'text', ['limit' => MysqlAdapter::TEXT_LONG])
             ->addColumn('time', 'integer', [])
             ->create();
 
@@ -248,7 +253,7 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('id', 'biginteger', [ 'identity' => true ])
             ->addColumn('name', 'string', [])
             ->addColumn('price', 'decimal', [ 'precision' => 12, 'scale' => 2 ])
-            ->addColumn('content', 'string', [])
+            ->addColumn('content', 'text', [])
             ->addColumn('auto_renew', 'integer', [])
             ->addColumn('auto_reset_bandwidth', 'integer', [ 'default' => 0 ])
             ->addColumn('status', 'integer', [ 'default' => 1 ])
@@ -263,16 +268,6 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('created_at', 'timestamp', [ 'default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP' ])
             ->addColumn('updated_at', 'timestamp', [ 'default' => '2016-06-01 00:00:00' ])
             ->addForeignKey('user_id', 'user', 'id', [ 'delete' => 'CASCADE', 'update' => 'CASCADE' ])
-            ->create();
-
-        $this->table('node_info', [ 'id' => false, 'primary_key' => [ 'id' ]])
-            ->addColumn('id', 'biginteger', [ 'identity' => true,'signed' => false ])
-            ->addColumn('node_id', 'integer', [])
-            ->addColumn('uptime', 'float', [])
-            ->addColumn('load', 'string', [])
-            ->addColumn('log_time', 'integer', [])
-            ->addIndex([ 'node_id' ])
-            ->addForeignKey('node_id', 'node', 'id', [ 'delete' => 'CASCADE', 'update' => 'CASCADE' ])
             ->create();
 
         $this->table('node_online_log', [ 'id' => false, 'primary_key' => [ 'id' ]])
@@ -303,7 +298,7 @@ final class InitDatabase extends AbstractMigration
         $this->table('ticket', [ 'id' => false, 'primary_key' => [ 'id' ]])
             ->addColumn('id', 'biginteger', [ 'identity' => true ])
             ->addColumn('title', 'string', [])
-            ->addColumn('content', 'string', [])
+            ->addColumn('content', 'text', [])
             ->addColumn('rootid', 'biginteger', [])
             ->addColumn('userid', 'biginteger', [])
             ->addColumn('datetime', 'biginteger', [])
@@ -335,7 +330,7 @@ final class InitDatabase extends AbstractMigration
             ->addColumn('subscribe_type', 'string', [ 'comment' => '获取的订阅类型' ])
             ->addColumn('request_ip', 'string', [ 'comment' => '请求 IP' ])
             ->addColumn('request_time', 'datetime', [ 'comment' => '请求时间' ])
-            ->addColumn('request_user_agent', 'string', [ 'comment' => '请求 UA 信息','default' => null ])
+            ->addColumn('request_user_agent', 'text', [ 'comment' => '请求 UA 信息','default' => null ])
             ->addIndex([ 'user_id' ])
             ->addForeignKey('user_id', 'user', 'id', [ 'delete' => 'CASCADE', 'update' => 'CASCADE' ])
             ->create();
@@ -374,7 +369,6 @@ final class InitDatabase extends AbstractMigration
         $this->table('paylist')->drop()->update();
         $this->table('shop')->drop()->update();
         $this->table('user_invite_code')->drop()->update();
-        $this->table('node_info')->drop()->update();
         $this->table('node_online_log')->drop()->update();
         $this->table('user_password_reset')->drop()->update();
         $this->table('telegram_session')->drop()->update();

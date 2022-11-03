@@ -11,18 +11,12 @@ use App\Models\Node;
 use App\Models\NodeOnlineLog;
 use App\Models\User;
 use App\Services\DB;
+use App\Utils\ResponseHelper;
 use App\Utils\Tools;
 use Illuminate\Database\Eloquent\Builder;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Request;
 use Slim\Http\Response;
-
-use function in_array;
-use function is_array;
-use function json_decode;
-use function json_encode;
-use function sha1;
-use function time;
 
 final class UserController extends BaseController
 {
@@ -38,18 +32,14 @@ final class UserController extends BaseController
     public function index($request, $response, $args): ResponseInterface
     {
         $node_id = $request->getQueryParam('node_id');
-
-        if (!$node_id) {
-            $node = Node::where('node_ip', $request->getServerParam('REMOTE_ADDR'))->first();
-        } else {
-            $node = Node::where('id', '=', $node_id)->first();
-            if ($node === null) {
-                return $response->withJson([
-                    'ret' => 0,
-                ]);
-            }
+        $node = Node::find($node_id);
+        if ($node === null) {
+            return $response->withJson([
+                'ret' => 0,
+            ]);
         }
-        $node->update(['node_heartbeat' => time()]);
+
+        $node->update(['node_heartbeat' => \time()]);
 
         if (($node->node_bandwidth_limit !== 0) && $node->node_bandwidth_limit < $node->node_bandwidth) {
             return $response->withJson([
@@ -58,14 +48,14 @@ final class UserController extends BaseController
             ]);
         }
 
-        if (in_array($node->sort, [0, 10]) && $node->mu_only !== -1) {
+        if (\in_array($node->sort, [0, 10]) && $node->mu_only !== -1) {
             $mu_port_migration = $_ENV['mu_port_migration'];
-            $muPort = Tools::getMutilUserOutPortArray($node->server);
+            $muPort = Tools::getMutilUserOutPortArray($node);
         } else {
             $mu_port_migration = false;
         }
 
-        $users_raw = User::where('enable', 1)
+        $users_raw = User::where('is_banned', 0)
             ->where('expire_in', '>', date('Y-m-d H:i:s'))
             ->where(static function (Builder $query) use ($node): void {
                 $query->whereRaw(
@@ -75,7 +65,7 @@ final class UserController extends BaseController
             })
             ->get();
 
-        if (in_array($node->sort, [11, 14])) {
+        if (\in_array($node->sort, [11, 14])) {
             $key_list = ['node_speedlimit', 'id', 'node_connector', 'uuid', 'alive_ip'];
         } else {
             $key_list = [
@@ -101,7 +91,7 @@ final class UserController extends BaseController
             if ($mu_port_migration === true && $user_raw->is_multi_user !== 0) {
                 // 下发偏移后端口
                 if ($muPort['type'] === 0) {
-                    if (in_array($user_raw->port, array_keys($muPort['port']))) {
+                    if (\in_array($user_raw->port, array_keys($muPort['port']))) {
                         $user_raw->port = $muPort['port'][$user_raw->port]['backend'];
                     }
                 } else {
@@ -112,18 +102,10 @@ final class UserController extends BaseController
             $users[] = $user_raw;
         }
 
-        $header_etag = $request->getHeaderLine('If-None-Match');
-
-        $body = json_encode([
+        return ResponseHelper::etagJson($request, $response, [
             'ret' => 1,
             'data' => $users,
         ]);
-        $etag = sha1($body);
-        if ($header_etag === $etag) {
-            return $response->withStatus(304);
-        }
-        $response->getBody()->write($body);
-        return $response->withHeader('ETag', $etag)->withHeader('Content-Type', 'application/json');
     }
 
     /**
@@ -137,20 +119,15 @@ final class UserController extends BaseController
      */
     public function addTraffic($request, $response, $args)
     {
-        $data = json_decode($request->getBody()->__toString());
-        if (!$data || !is_array($data?->data)) {
+        $data = \json_decode($request->getBody()->__toString());
+        if (!$data || !\is_array($data?->data)) {
             return $response->withJson([
-                'ret' => 1,
-                'data' => 'ok',
+                'ret' => 0,
             ]);
         }
         $data = $data->data;
 
         $node_id = $request->getQueryParam('node_id');
-        if (!$node_id) {
-            $node = Node::where('node_ip', $_SERVER['REMOTE_ADDR'])->first();
-            $node_id = $node->id;
-        }
         $node = Node::find($node_id);
 
         if ($node === null) {
@@ -159,17 +136,17 @@ final class UserController extends BaseController
             ]);
         }
 
+        $pdo = DB::getPdo();
+        $stat = $pdo->prepare('UPDATE user SET t = UNIX_TIMESTAMP(), u = u + ?, d = d + ?, transfer_total = transfer_total + ? WHERE id = ?');
+
+        $rate = (float) $node->traffic_rate;
         $sum = 0;
         foreach ($data as $log) {
-            $u = (int) $log?->u;
-            $d = (int) $log?->d;
-            $user_id = (int) $log?->user_id;
+            $u = $log?->u;
+            $d = $log?->d;
+            $user_id = $log?->user_id;
             if ($user_id) {
-                User::where('id', $user_id)->update([
-                    't' => time(),
-                    'u' => DB::raw("u + ${u}"),
-                    'd' => DB::raw("d + ${d}"),
-                ]);
+                $stat->execute([(int) ($u * $rate), (int) ($d * $rate), (int) ($u + $d), $user_id]);
             }
             $sum += $u + $d;
         }
@@ -178,7 +155,7 @@ final class UserController extends BaseController
         NodeOnlineLog::insert([
             'node_id' => $node_id,
             'online_user' => count($data),
-            'log_time' => time(),
+            'log_time' => \time(),
         ]);
 
         return $response->withJson([
@@ -198,23 +175,17 @@ final class UserController extends BaseController
      */
     public function addAliveIp($request, $response, $args)
     {
-        $data = json_decode($request->getBody()->__toString());
-        if (!$data || !is_array($data?->data)) {
+        $data = \json_decode($request->getBody()->__toString());
+        if (!$data || !\is_array($data?->data)) {
             return $response->withJson([
-                'ret' => 1,
-                'data' => 'ok',
+                'ret' => 0,
             ]);
         }
         $data = $data->data;
 
         $node_id = $request->getQueryParam('node_id');
-        if (!$node_id) {
-            $node_id = Node::where('node_ip', $request->getServerParam('REMOTE_ADDR'))->value('id');
-        } elseif (!Node::where('id', $node_id)->exists()) {
-            $node_id = null;
-        }
 
-        if ($node_id === null) {
+        if ($node_id === null || !Node::where('id', $node_id)->exists()) {
             return $response->withJson([
                 'ret' => 0,
             ]);
@@ -228,7 +199,7 @@ final class UserController extends BaseController
                 'userid' => $userid,
                 'nodeid' => $node_id,
                 'ip' => $ip,
-                'datetime' => time(),
+                'datetime' => \time(),
             ]);
         }
 
@@ -249,23 +220,17 @@ final class UserController extends BaseController
      */
     public function addDetectLog($request, $response, $args)
     {
-        $data = json_decode($request->getBody()->__toString());
-        if (!$data || !is_array($data?->data)) {
+        $data = \json_decode($request->getBody()->__toString());
+        if (!$data || !\is_array($data?->data)) {
             return $response->withJson([
-                'ret' => 1,
-                'data' => 'ok',
+                'ret' => 0,
             ]);
         }
         $data = $data->data;
 
         $node_id = $request->getQueryParam('node_id');
-        if (!$node_id) {
-            $node_id = Node::where('node_ip', $request->getServerParam('REMOTE_ADDR'))->value('id');
-        } elseif (!Node::where('id', $node_id)->exists()) {
-            $node_id = null;
-        }
 
-        if ($node_id === null) {
+        if ($node_id === null || !Node::where('id', $node_id)->exists()) {
             return $response->withJson([
                 'ret' => 0,
             ]);
@@ -279,7 +244,7 @@ final class UserController extends BaseController
                 'user_id' => $user_id,
                 'list_id' => $list_id,
                 'node_id' => $node_id,
-                'datetime' => time(),
+                'datetime' => \time(),
             ]);
         }
 

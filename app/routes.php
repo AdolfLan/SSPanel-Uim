@@ -32,16 +32,15 @@ return function (SlimApp $app): void {
         $this->post('/checkin', App\Controllers\UserController::class . ':doCheckin');
 
         $this->get('/announcement', App\Controllers\UserController::class . ':announcement');
+        $this->get('/docs', App\Controllers\UserController::class . ':docs');
+
         $this->get('/media', App\Controllers\UserController::class . ':media');
 
-        $this->get('/donate', App\Controllers\UserController::class . ':donate');
         $this->get('/profile', App\Controllers\UserController::class . ':profile');
         $this->get('/invite', App\Controllers\UserController::class . ':invite');
-        $this->get('/disable', App\Controllers\UserController::class . ':disable');
+        $this->get('/banned', App\Controllers\UserController::class . ':banned');
 
-        $this->get('/node', App\Controllers\User\NodeController::class . ':userNodePage');
-        $this->get('/node/{id}/ajax', App\Controllers\User\NodeController::class . ':userNodeAjax');
-        $this->get('/node/{id}', App\Controllers\User\NodeController::class . ':userNodeInfo');
+        $this->get('/server', App\Controllers\User\ServerController::class . ':userServerPage');
 
         $this->get('/detect', App\Controllers\User\DetectController::class . ':detectIndex');
         $this->get('/detect/log', App\Controllers\User\DetectController::class . ':detectLog');
@@ -49,7 +48,7 @@ return function (SlimApp $app): void {
         $this->get('/shop', App\Controllers\User\ShopController::class . ':shop');
         $this->post('/coupon_check', App\Controllers\User\ShopController::class . ':couponCheck');
         $this->post('/buy', App\Controllers\User\ShopController::class . ':buy');
-        $this->post('/buy_traffic_package', App\User\ShopController\UserController::class . ':buyTrafficPackage');
+        $this->post('/buy_traffic_package', App\Controllers\User\ShopController::class . ':buyTrafficPackage');
 
         $this->get('/ticket', App\Controllers\User\TicketController::class . ':ticket');
         $this->get('/ticket/create', App\Controllers\User\TicketController::class . ':ticketCreate');
@@ -64,14 +63,12 @@ return function (SlimApp $app): void {
         $this->post('/username', App\Controllers\UserController::class . ':updateUsername');
         $this->post('/password', App\Controllers\UserController::class . ':updatePassword');
         $this->post('/send', App\Controllers\AuthController::class . ':sendVerify');
-        $this->post('/wechat', App\Controllers\UserController::class . ':updateWechat');
+        $this->post('/contact_update', App\Controllers\UserController::class . ':updateContact');
         $this->post('/ssr', App\Controllers\UserController::class . ':updateSSR');
         $this->post('/theme', App\Controllers\UserController::class . ':updateTheme');
         $this->post('/mail', App\Controllers\UserController::class . ':updateMail');
-        $this->post('/sspwd', App\Controllers\UserController::class . ':updateSsPwd');
+        $this->post('/passwd_reset', App\Controllers\UserController::class . ':resetPasswd');
         $this->post('/method', App\Controllers\UserController::class . ':updateMethod');
-        $this->post('/hide', App\Controllers\UserController::class . ':updateHide');
-        $this->get('/sys', App\Controllers\UserController::class . ':sys');
         $this->get('/trafficlog', App\Controllers\UserController::class . ':trafficLog');
         $this->get('/kill', App\Controllers\UserController::class . ':kill');
         $this->post('/kill', App\Controllers\UserController::class . ':handleKill');
@@ -81,26 +78,24 @@ return function (SlimApp $app): void {
 
         $this->get('/code_check', App\Controllers\UserController::class . ':codeCheck');
         $this->post('/code', App\Controllers\UserController::class . ':codePost');
-        $this->post('/gacheck', App\Controllers\UserController::class . ':gaCheck');
-        $this->post('/gaset', App\Controllers\UserController::class . ':gaSet');
-        $this->get('/gareset', App\Controllers\UserController::class . ':gaReset');
-        $this->get('/telegram_reset', App\Controllers\UserController::class . ':telegramReset');
-        $this->post('/resetport', App\Controllers\UserController::class . ':resetPort');
-        $this->post('/specifyport', App\Controllers\UserController::class . ':specifyPort');
+        $this->post('/ga_check', App\Controllers\UserController::class . ':checkGa');
+        $this->post('/ga_set', App\Controllers\UserController::class . ':setGa');
+        $this->get('/ga_reset', App\Controllers\UserController::class . ':resetGa');
+        $this->post('/telegram_reset', App\Controllers\UserController::class . ':resetTelegram');
         $this->post('/unblock', App\Controllers\UserController::class . ':unblock');
         $this->get('/bought', App\Controllers\UserController::class . ':bought');
         $this->delete('/bought', App\Controllers\UserController::class . ':deleteBoughtGet');
-        $this->get('/url_reset', App\Controllers\UserController::class . ':resetURL');
+        $this->post('/url_reset', App\Controllers\UserController::class . ':resetURL');
         $this->put('/invite', App\Controllers\UserController::class . ':resetInviteURL');
+
+        //深色模式
+        $this->post('/switch_theme_mode', App\Controllers\UserController::class . ':switchThemeMode');
 
         // 订阅记录
         $this->get('/subscribe_log', App\Controllers\UserController::class . ':subscribeLog');
 
         // getUserAllURL
         $this->get('/getUserAllURL', App\Controllers\UserController::class . ':getUserAllURL');
-
-        // getPcClient
-        $this->get('/getPcClient', App\Controllers\UserController::class . ':getPcClient');
 
         //Reconstructed Payment System
         $this->post('/payment/purchase/{type}', App\Services\Payment::class . ':purchase');
@@ -112,7 +107,6 @@ return function (SlimApp $app): void {
         $this->get('/notify/{type}', App\Services\Payment::class . ':notify');
         $this->post('/notify/{type}', App\Services\Payment::class . ':notify');
         $this->post('/status/{type}', App\Services\Payment::class . ':getStatus');
-        // $this->post('/coinpay/notify',  App\Services\CoinPayment::class. ':notify');
     });
 
     // Auth
@@ -126,7 +120,6 @@ return function (SlimApp $app): void {
         $this->post('/send', App\Controllers\AuthController::class . ':sendVerify');
         $this->get('/logout', App\Controllers\AuthController::class . ':logout');
         $this->get('/telegram_oauth', App\Controllers\AuthController::class . ':telegramOauth');
-        $this->get('/login_getCaptcha', App\Controllers\AuthController::class . ':getCaptcha');
     })->add(new Guest());
 
     // Password
@@ -153,6 +146,7 @@ return function (SlimApp $app): void {
         $this->get('/node/create', App\Controllers\Admin\NodeController::class . ':create');
         $this->post('/node', App\Controllers\Admin\NodeController::class . ':add');
         $this->get('/node/{id}/edit', App\Controllers\Admin\NodeController::class . ':edit');
+        $this->post('/node/{id}/password_reset', App\Controllers\Admin\NodeController::class . ':resetNodePassword');
         $this->put('/node/{id}', App\Controllers\Admin\NodeController::class . ':update');
         $this->delete('/node', App\Controllers\Admin\NodeController::class . ':delete');
         $this->post('/node/ajax', App\Controllers\Admin\NodeController::class . ':ajax');
@@ -213,8 +207,6 @@ return function (SlimApp $app): void {
         $this->get('/code', App\Controllers\Admin\CodeController::class . ':index');
         $this->get('/code/create', App\Controllers\Admin\CodeController::class . ':create');
         $this->post('/code', App\Controllers\Admin\CodeController::class . ':add');
-        $this->get('/donate/create', App\Controllers\Admin\CodeController::class . ':donateCreate');
-        $this->post('/donate', App\Controllers\Admin\CodeController::class . ':donateAdd');
         $this->post('/code/ajax', App\Controllers\Admin\CodeController::class . ':ajaxCode');
 
         // User Mange
@@ -234,6 +226,10 @@ return function (SlimApp $app): void {
         // Subscribe Log Mange
         $this->get('/subscribe', App\Controllers\Admin\SubscribeLogController::class . ':index');
         $this->post('/subscribe/ajax', App\Controllers\Admin\SubscribeLogController::class . ':ajaxSubscribeLog');
+
+        // Traffic Log Mange
+        $this->get('/trafficlog', App\Controllers\Admin\TrafficLogController::class . ':index');
+        $this->post('/trafficlog/ajax', App\Controllers\Admin\TrafficLogController::class . ':ajaxTrafficLog');
 
         // Detect Ban Mange
         $this->get('/detect/ban', App\Controllers\Admin\DetectBanLogController::class . ':index');
@@ -285,17 +281,16 @@ return function (SlimApp $app): void {
     $app->group('/mod_mu', function (): void {
         // 流媒体检测
         $this->post('/media/saveReport', App\Controllers\Node\NodeController::class . ':saveReport');
-        // 其他
+        // 节点
+        $this->get('/nodes', App\Controllers\Node\NodeController::class . ':getAllInfo');
         $this->get('/nodes/{id}/info', App\Controllers\Node\NodeController::class . ':getInfo');
         $this->post('/nodes/{id}/info', App\Controllers\Node\NodeController::class . ':info');
-        $this->get('/nodes', App\Controllers\Node\NodeController::class . ':getAllInfo');
-        $this->post('/nodes/config', App\Controllers\Node\NodeController::class . ':getConfig');
-
+        // 用户
         $this->get('/users', App\Controllers\Node\UserController::class . ':index');
         $this->post('/users/traffic', App\Controllers\Node\UserController::class . ':addTraffic');
         $this->post('/users/aliveip', App\Controllers\Node\UserController::class . ':addAliveIp');
         $this->post('/users/detectlog', App\Controllers\Node\UserController::class . ':addDetectLog');
-
+        // 审计 & 杂七杂八的功能
         $this->get('/func/detect_rules', App\Controllers\Node\FuncController::class . ':getDetectLogs');
         $this->post('/func/block_ip', App\Controllers\Node\FuncController::class . ':addBlockIp');
         $this->get('/func/block_ip', App\Controllers\Node\FuncController::class . ':getBlockip');
@@ -310,9 +305,5 @@ return function (SlimApp $app): void {
     //通用訂閲
     $app->group('/sub', function (): void {
         $this->get('/{token}/{subtype}', App\Controllers\SubController::class . ':getContent');
-    });
-
-    $app->group('/getClient', function (): void {
-        $this->get('/{token}', App\Controllers\UserController::class . ':getClientfromToken');
     });
 };

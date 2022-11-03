@@ -47,7 +47,7 @@ final class CodeController extends BaseController
         $query = Code::getTableDataFromAdmin(
             $request,
             static function (&$order_field): void {
-                if (in_array($order_field, ['user_name'])) {
+                if (\in_array($order_field, ['user_name'])) {
                     $order_field = 'userid';
                 }
             }
@@ -86,17 +86,6 @@ final class CodeController extends BaseController
         return $response->write(
             $this->view()
                 ->display('admin/code/add.tpl')
-        );
-    }
-
-    /**
-     * @param array     $args
-     */
-    public function donateCreate(Request $request, Response $response, array $args)
-    {
-        return $response->write(
-            $this->view()
-                ->display('admin/code/add_donate.tpl')
         );
     }
 
@@ -152,27 +141,5 @@ final class CodeController extends BaseController
         }
 
         return ResponseHelper::successfully($response, '充值码添加成功');
-    }
-
-    /**
-     * @param array     $args
-     */
-    public function donateAdd(Request $request, Response $response, array $args)
-    {
-        $amount = $request->getParam('amount');
-        $type = $request->getParam('type');
-        $text = $request->getParam('code');
-
-        $code = new Code();
-        $code->code = $text;
-        $code->type = $type;
-        $code->number = $amount;
-        $code->userid = Auth::getUser()->id;
-        $code->isused = 1;
-        $code->usedatetime = date('Y:m:d H:i:s');
-
-        $code->save();
-
-        return ResponseHelper::successfully($response, '添加成功');
     }
 }
