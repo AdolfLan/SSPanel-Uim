@@ -9,21 +9,18 @@ final class Setting extends Model
     protected $connection = 'default';
     protected $table = 'config';
 
-    public static function obtain($item)
+    public static function obtain($item): bool|int|string
     {
-        $config = self::where('item', '=', $item)->first();
+        $config = self::where('item', $item)->first();
 
-        if ($config->type === 'bool') {
-            return (bool) $config->value;
-        }
-        if ($config->type === 'int') {
-            return (int) $config->value;
-        }
-
-        return (string) $config->value;
+        return match ($config->type) {
+            'bool' => (bool) $config->value,
+            'int' => (int) $config->value,
+            default => (string) $config->value,
+        };
     }
 
-    public static function getClass($class)
+    public static function getClass($class): array
     {
         $configs = [];
         $all_configs = Setting::where('class', $class)->get();
@@ -41,7 +38,7 @@ final class Setting extends Model
         return $configs;
     }
 
-    public static function getPublicConfig()
+    public static function getPublicConfig(): array
     {
         $configs = [];
         $all_configs = Setting::where('is_public', '1')->get();

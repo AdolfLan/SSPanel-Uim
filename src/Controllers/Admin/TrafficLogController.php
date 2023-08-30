@@ -7,71 +7,61 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\UserHourlyUsage;
 use App\Utils\Tools;
+use Exception;
 use Psr\Http\Message\ResponseInterface;
-use Slim\Http\Request;
 use Slim\Http\Response;
+use Slim\Http\ServerRequest;
 
 final class TrafficLogController extends BaseController
 {
+    public static array $details =
+    [
+        'field' => [
+            'id' => '记录ID',
+            'user_id' => '用户ID',
+            'traffic' => '累计流量/GB',
+            'hourly_usage' => '过去一小时使用流量/GB',
+            'datetime' => '时间',
+        ],
+    ];
+
     /**
      * 后台流量记录页面
      *
-     * @param array     $args
+     * @throws Exception
      */
-    public function index(Request $request, Response $response, array $args): ResponseInterface
+    public function index(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        $table_config = [];
-        $table_config['total_column'] = [
-            'id' => 'ID',
-            'user_id' => '用户ID',
-            'traffic' => '累计使用流量/GB',
-            'hourly_usage' => '过去一小时使用流量/GB',
-            'datetime' => '时间',
-        ];
-        $table_config['default_show_column'] = ['id', 'user_id', 'traffic', 'hourly_usage', 'datetime'];
-        $table_config['ajax_url'] = 'trafficlog/ajax';
         return $response->write(
             $this->view()
-                ->assign('table_config', $table_config)
-                ->display('admin/trafficlog.tpl')
+                ->assign('details', self::$details)
+                ->fetch('admin/log/traffic.tpl')
         );
     }
 
     /**
      * 后台流量记录页面 AJAX
-     *
-     * @param array     $args
      */
-    public function ajaxTrafficLog(Request $request, Response $response, array $args): ResponseInterface
+    public function ajax(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        $query = UserHourlyUsage::getTableDataFromAdmin(
-            $request,
-            static function (&$order_field): void {
-                if (\in_array($order_field, ['id'])) {
-                    $order_field = 'id';
-                }
-            }
-        );
+        $length = $request->getParam('length');
+        $page = $request->getParam('start') / $length + 1;
+        $draw = $request->getParam('draw');
 
-        $data = [];
-        foreach ($query['datas'] as $value) {
-            /** @var TrafficLog $value */
+        $trafficlogs = UserHourlyUsage::orderBy('id', 'desc')->paginate($length, '*', '', $page);
+        $total = UserHourlyUsage::count();
 
-            $tempdata = [];
-            $tempdata['id'] = $value->id;
-            $tempdata['user_id'] = $value->user_id;
-            $tempdata['traffic'] = Tools::flowToGB($value->traffic);
-            $tempdata['hourly_usage'] = Tools::flowToGB($value->hourly_usage);
-            $tempdata['datetime'] = Tools::toDateTime($value->datetime);
-
-            $data[] = $tempdata;
+        foreach ($trafficlogs as $trafficlog) {
+            $trafficlog->traffic = round(Tools::flowToGB($trafficlog->traffic), 2);
+            $trafficlog->hourly_usage = round(Tools::flowToGB($trafficlog->hourly_usage), 2);
+            $trafficlog->datetime = Tools::toDateTime((int) $trafficlog->datetime);
         }
 
         return $response->withJson([
-            'draw' => $request->getParam('draw'),
-            'recordsTotal' => UserHourlyUsage::count(),
-            'recordsFiltered' => $query['count'],
-            'data' => $data,
+            'draw' => $draw,
+            'recordsTotal' => $total,
+            'recordsFiltered' => $total,
+            'trafficlogs' => $trafficlogs,
         ]);
     }
 }

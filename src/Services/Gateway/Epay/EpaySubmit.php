@@ -7,6 +7,7 @@ namespace App\Services\Gateway\Epay;
 final class EpaySubmit
 {
     private $alipay_config;
+    private string $alipay_gateway_new;
 
     public function __construct($alipay_config)
     {
@@ -14,7 +15,7 @@ final class EpaySubmit
         $this->alipay_gateway_new = $this->alipay_config['apiurl'] . 'submit.php?';
     }
 
-    public function buildRequestMysign($para_sort)
+    public function buildRequestMysign($para_sort): string
     {
         //把数组所有元素，按照“参数=参数值”的模式用“&”字符拼接成字符串
         $prestr = EpayTool::createLinkstring($para_sort);
@@ -40,7 +41,7 @@ final class EpaySubmit
         return $para_sort;
     }
 
-    public function buildRequestParaToString($para_temp)
+    public function buildRequestParaToString($para_temp): string
     {
         //待请求参数数组
         $para = $this->buildRequestPara($para_temp);
@@ -49,12 +50,13 @@ final class EpaySubmit
         return EpayTool::createLinkstringUrlencode($para);
     }
 
-    public function buildRequestForm($para_temp, $method = 'POST', $button_name = '正在跳转')
+    public function buildRequestForm($para_temp, $method = 'POST', $button_name = '正在跳转'): string
     {
         //待请求参数数组
         $para = $this->buildRequestPara($para_temp);
 
-        $sHtml = "<form id='alipaysubmit' name='alipaysubmit' action='".$this->alipay_gateway_new."' method='".$method."'>";
+        $sHtml = "<form id='alipaysubmit' name='alipaysubmit' action='".
+            $this->alipay_gateway_new . "' method='" . $method . "'>";
         foreach ($para as $key => $val) {
             $sHtml .= "<input type='hidden' name='".$key."' value='".$val."'/>";
         }

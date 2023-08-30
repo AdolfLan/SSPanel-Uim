@@ -1,92 +1,145 @@
-{include file='admin/main.tpl'}
+{include file='admin/header.tpl'}
 
-<main class="content">
-    <div class="content-header ui-content-header">
-        <div class="container">
-            <h1 class="content-heading">工单</h1>
+<div class="page-wrapper">
+    <div class="container-xl">
+        <div class="page-header d-print-none text-white">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <span class="home-title">工单列表</span>
+                    </h2>
+                    <div class="page-pretitle my-3">
+                        <span class="home-subtitle">查看并回复用户工单</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="container">
-        <div class="col-lg-12 col-sm-12">
-            <section class="content-inner margin-top-no">
-                <div class="card">
-                    <div class="card-main">
-                        <div class="card-inner">
-                            <p>系统中的工单</p>
-                            <p>显示表项:
-                                {include file='table/checkbox.tpl'}
-                            </p>
+    <div class="page-body">
+        <div class="container-xl">
+            <div class="row row-deck row-cards">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table card-table table-vcenter text-nowrap datatable">
+                                <thead>
+                                    <tr>
+                                        {foreach $details['field'] as $key => $value}
+                                            <th>{$value}</th>
+                                        {/foreach}
+                                    </tr>
+                                </thead>
+                            </table>
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-main">
-                        <div class="card-inner">
-                            <div class="form-group form-group-label">
-                                <label class="floating-label" for="userid"> 输入用戶 ID 快速创建新工单 </label>
-                                <input class="form-control maxwidth-edit" id="userid" type="text">
-                            </div>
-                        </div>
-                        <div class="card-inner">
-                            <div class="form-group form-group-label">
-                                <label class="floating-label" for="title"> 标题 </label>
-                                <input class="form-control maxwidth-edit" id="title" type="text">
-                            </div>
-                        </div>
-                        <div class="card-inner">
-                            <div class="form-group form-group-label">
-                                <label class="floating-label" for="content"> 内容 </label>
-                                <input class="form-control maxwidth-edit" id="content" type="text">
-                            </div>
-                        </div>
-                        <div class="card-action">
-                            <div class="card-action-btn pull-left">
-                                <a class="btn btn-flat waves-attach waves-light" id="ticket_create"><span
-                                            class="mdi mdi-check"></span>&nbsp;添加</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    {include file='table/table.tpl'}
-                </div>
-                {include file='dialog.tpl'}
+            </div>
         </div>
     </div>
-</main>
 
-{include file='admin/footer.tpl'}
-
-<script>
-    {include file='table/js_1.tpl'}
-    window.addEventListener('load', () => {
-        table = $('#table_tickets').DataTable({
-            ajax: 'ticket/ajax',
-            processing: true,
-            serverSide: true,
-            order: [[1, 'desc']]
-        })
-        {include file='table/js_2.tpl'}
-        function createTicket() {
-            $.ajax({
-                type: "POST",
-                url: "/admin/ticket",
-                dataType: "json",
-                data: {
-                    content: $$getValue('content'),
-                    title: $$getValue('title'),
-                    userid: $$getValue('userid')
+    <script>
+        var table = $('#data_table').DataTable({
+            ajax: {
+                url: '/admin/ticket/ajax',
+                type: 'POST',
+                dataSrc: 'tickets'
+            },
+            "autoWidth":false,
+            'iDisplayLength': 10,
+            'scrollX': true,
+            'order': [
+                [1, 'desc']
+            ],
+            columns: [
+                {foreach $details['field'] as $key => $value}
+                { data: '{$key}' },
+                {/foreach}
+            ],
+            "columnDefs":[
+                { targets:[0],orderable:false }
+            ],
+            "dom": "<'row px-3 py-3'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                "<'row'<'col-sm-12'tr>>" +
+                "<'row card-footer d-flex d-flexalign-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            language: {
+                "sProcessing": "处理中...",
+                "sLengthMenu": "显示 _MENU_ 条",
+                "sZeroRecords": "没有匹配结果",
+                "sInfo": "第 _START_ 至 _END_ 项结果，共 _TOTAL_项",
+                "sInfoEmpty": "第 0 至 0 项结果，共 0 项",
+                "sInfoFiltered": "(在 _MAX_ 项中查找)",
+                "sInfoPostFix": "",
+                "sSearch": "<i class=\"ti ti-search\"></i> ",
+                "sUrl": "",
+                "sEmptyTable": "表中数据为空",
+                "sLoadingRecords": "载入中...",
+                "sInfoThousands": ",",
+                "oPaginate": {
+                    "sFirst": "首页",
+                    "sPrevious": "<i class=\"titi-arrow-left\"></i>",
+                    "sNext": "<i class=\"ti ti-arrow-right\"><i>",
+                    "sLast": "末页"
                 },
-                success: data => {
-                    $("#result").modal();
-                    $$.getElementById('msg').innerHTML = data.msg;
-                },
-                error: jqXHR => {
-                    $("#result").modal();
-                    $$.getElementById('msg').innerHTML = `${ldelim}jqXHR{rdelim} 发生了错误。`;
+                "oAria": {
+                    "sSortAscending": ": 以升序排列此列",
+                    "sSortDescending": ": 以降序排列此列"
                 }
+            },
+        });
+
+        function loadTable() {
+            table;
+        }
+
+        function closeTicket(ticket_id) {
+            $('#notice-message').text('确定关闭此工单？');
+            $('#notice-dialog').modal('show');
+            $('#notice-confirm').off('click').on('click', function () {
+                $.ajax({
+                    url: "/admin/ticket/" + ticket_id + '/close',
+                    type: 'PUT',
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.ret === 1) {
+                            $('#success-message').text(data.msg);
+                            $('#success-dialog').modal('show');
+                            reloadTableAjax();
+                        } else {
+                            $('#fail-message').text(data.msg);
+                            $('#fail-dialog').modal('show');
+                        }
+                    }
+                });
             });
         }
-        $$.getElementById('ticket_create').addEventListener('click', createTicket)
-    });
-</script>
+
+        function deleteTicket(ticket_id) {
+            $('#notice-message').text('确定删除此工单？');
+            $('#notice-dialog').modal('show');
+            $('#notice-confirm').off('click').on('click', function() {
+                $.ajax({
+                    url: "/admin/ticket/" + ticket_id,
+                    type: 'DELETE',
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.ret === 1) {
+                            $('#success-noreload-message').text(data.msg);
+                            $('#success-noreload-dialog').modal('show');
+                            reloadTableAjax();
+                        } else {
+                            $('#fail-message').text(data.msg);
+                            $('#fail-dialog').modal('show');
+                        }
+                    }
+                })
+            });
+        }
+
+        function reloadTableAjax() {
+            table.ajax.reload(null, false);
+        }
+
+        loadTable();
+    </script>
+
+{include file='admin/footer.tpl'}

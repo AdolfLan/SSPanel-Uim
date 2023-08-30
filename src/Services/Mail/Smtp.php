@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Mail;
 
 use App\Models\Setting;
+use Exception;
 use PHPMailer\PHPMailer\PHPMailer;
 
 final class Smtp extends Base
 {
-    private $mail;
+    private PHPMailer $mail;
 
+    /**
+     * @throws Exception
+     */
     public function __construct()
     {
         $configs = Setting::getClass('smtp');
@@ -26,7 +30,7 @@ final class Smtp extends Base
         $mail->Password = $configs['smtp_password'];          // SMTP password
         $mail->setFrom($configs['smtp_sender'], $configs['smtp_name']);
 
-        if ($configs['smtp_ssl'] === true) {
+        if ($configs['smtp_ssl']) {
             // Enable TLS encryption, `ssl` also accepted
             $mail->SMTPSecure = ($configs['smtp_port'] === '587' ? 'tls' : 'ssl');
         }
@@ -38,6 +42,9 @@ final class Smtp extends Base
         $this->mail = $mail;
     }
 
+    /**
+     * @throws Exception
+     */
     public function send($to, $subject, $text, $files): void
     {
         $mail = $this->mail;
@@ -45,12 +52,15 @@ final class Smtp extends Base
         $mail->isHTML();
         $mail->Subject = $subject;
         $mail->Body = $text;
-        foreach ($files as $file) {
-            $mail->addAttachment($file);
+
+        if ($files !== []) {
+            foreach ($files as $file_raw) {
+                $mail->addAttachment($file_raw);
+            }
         }
 
         if (! $mail->send()) {
-            throw new \Exception($mail->ErrorInfo);
+            throw new Exception($mail->ErrorInfo);
         }
     }
 }

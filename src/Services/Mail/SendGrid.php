@@ -5,49 +5,49 @@ declare(strict_types=1);
 namespace App\Services\Mail;
 
 use App\Models\Setting;
+use SendGrid as SG;
+use SendGrid\Mail\Mail;
+use SendGrid\Mail\TypeException;
+use function base64_encode;
+use function basename;
+use function file_get_contents;
 
 final class SendGrid extends Base
 {
-    private $config;
-    private $sg;
-    private $sender;
-    private $name;
+    private SG $sg;
+    private Mail $email;
 
+    /**
+     * @throws TypeException
+     */
     public function __construct()
-    {
-        $this->config = $this->getConfig();
-        $this->sg = new \SendGrid($this->config['key']);
-        $this->sender = $this->config['sender'];
-        $this->name = $this->config['name'];
-        $this->email = new \SendGrid\Mail\Mail();
-    }
-
-    public function getConfig()
     {
         $configs = Setting::getClass('sendgrid');
 
-        return [
-            'key' => $configs['sendgrid_key'],
-            'sender' => $configs['sendgrid_sender'],
-            'name' => $configs['sendgrid_name'],
-        ];
+        $this->sg = new SG($configs['sendgrid_key']);
+        $this->email = new Mail();
+        $this->email->setFrom($configs['sendgrid_sender'], $configs['sendgrid_name']);
     }
 
-    public function send($to_address, $subject_raw, $text, $files): void
+    /**
+     * @throws TypeException
+     */
+    public function send($to, $subject, $text, $files): void
     {
-        $this->email->setFrom($this->sender, $this->name);
-        $this->email->setSubject($subject_raw);
-        $this->email->addTo($to_address, null);
+        $this->email->setSubject($subject);
+        $this->email->addTo($to);
         $this->email->addContent('text/html', $text);
 
-        foreach ($files as $file) {
-            $this->email->addAttachment(
-                base64_encode(file_get_contents($file)),
-                'application/octet-stream',
-                basename($file),
-                'attachment',
-                'attachment'
-            );
+        if ($files !== []) {
+            foreach ($files as $file_raw) {
+                $this->email->addAttachment(
+                    base64_encode(file_get_contents($file_raw)),
+                    'application/octet-stream',
+                    basename($file_raw),
+                    'attachment',
+                    'attachment'
+                );
+            }
         }
 
         $response = $this->sg->send($this->email);
